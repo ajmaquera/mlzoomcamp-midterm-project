@@ -1,120 +1,144 @@
 # HR Analytics: Employee Attrition Prediction
 
 **Machine Learning Zoomcamp — Midterm Project**  
-*Por: Romantic Maxwell*
+**Author:** Aldair Maquera  
 
 ---
 
-## 1. Descripcion del Problema de Negocio
+## 1. Problem Description
 
-La rotacion o renuncia voluntaria de empleados (**Employee Attrition**) es uno de los desafios mas criticos y costosos para cualquier organizacion. Segun diversos estudios de Recursos Humanos (SHRM), reemplazar a un colaborador calificado cuesta entre el **50% y el 200% de su salario anual**, sumado a la perdida de conocimiento institucional, tiempo invertido en reclutamiento y disminucion de la moral en los equipos.
+Employee turnover (**Employee Attrition**) is one of the most critical operational and financial challenges organizations face. Human resources research (e.g., SHRM) estimates that replacing a qualified employee typically costs between **50% and 200% of their annual salary**, accounting for recruitment fees, onboarding time, loss of institutional knowledge, and team disruption.
 
-### Objetivo del Proyecto
-Desarrollar una solucion integral de Machine Learning que prediga la probabilidad de que un empleado decida abandonar la empresa. Con estas predicciones, el departamento de Recursos Humanos (People Operations) puede:
-- Identificar perfiles en riesgo de fuga de talento antes de que presenten su renuncia.
-- Implementar planes de retencion personalizados (ajustes de carga laboral, revisiones salariales, promociones o capacitacion).
-- Disminuir la tasa de rotacion voluntaria y optimizar el presupuesto operativo de la empresa.
+### Project Objective
+The goal of this project is to build an end-to-end Machine Learning pipeline that estimates the probability of voluntary employee attrition. This project was developed as the Midterm Project for the **Machine Learning Zoomcamp** (DataTalks.Club).
+
+By providing probabilistic risk estimates, People Operations and HR teams can:
+- Identify team members showing higher statistical patterns associated with turnover.
+- Explore personalized retention actions (workload rebalancing, compensation reviews, career progression, mentorship).
+- Support strategic workforce planning and minimize unnecessary turnover expenses.
+
+> **Note on Causality:** The relationships identified in this project represent statistical associations observed in the dataset. They provide actionable signals for decision support, but should not be interpreted as proven causal mechanisms.
 
 ### Dataset
-Se utiliza el dataset de **IBM HR Analytics Employee Attrition** (disponible en `data/employee_attrition.csv`), el cual contiene **1,470 registros y 35 variables** que cubren aspectos demograficos, compensaciones, evaluaciones de desempeno y niveles de satisfaccion laboral.
+This project uses the **IBM HR Analytics Employee Attrition** dataset (stored in `data/employee_attrition.csv`), containing **1,470 records and 35 variables** spanning demographic details, compensation, job evaluations, role characteristics, and workplace satisfaction indicators.
 
 ---
 
-## 2. Resumen del Analisis Exploratorio (EDA)
+## 2. Exploratory Data Analysis (EDA)
 
-Durante el analisis en el notebook interactivo ([`notebook.ipynb`](notebook.ipynb)) se identificaron los siguientes patrones clave:
-1. **Desbalance moderado de clases:** Aproximadamente el **16.1%** de los empleados renunciaron (`target = 1`), mientras que el **83.9%** permanecio en la compania (`target = 0`).
-2. **Horas extras (`overtime`):** Es uno de los predictores mas fuertes; los empleados que realizan horas extras presentan una tasa de rotacion superior al **30%**, frente a menos del **10%** en quienes no las realizan.
-3. **Ingreso mensual (`monthlyincome`):** Los colaboradores que abandonan la empresa tienen ingresos mensuales sensiblemente menores (mediana en ~$3,200 vs ~$5,200 en empleados retenidos).
-4. **Distancia al hogar (`distancefromhome`):** Los trayectos diarios largos incrementan la probabilidad de renuncia.
-5. **Satisfaccion laboral y del entorno:** Calificaciones bajas (1 o 2 sobre 4) se correlacionan directamente con mayor fuga de talento.
+The complete exploratory analysis is documented in [`notebook.ipynb`](notebook.ipynb). Key findings include:
+
+1. **Target Class Imbalance:** Approximately **16.1%** of employees left the company (`target = 1`), while **83.9%** remained (`target = 0`). Because of this class imbalance, **ROC-AUC** is used as the primary evaluation metric rather than accuracy.
+2. **Overtime Work (`overtime`):** Employees working overtime exhibit an attrition rate of **30.5%**, compared to **10.4%** for employees without overtime.
+3. **Monthly Compensation (`monthlyincome`):** The income distribution is right-skewed across both groups. Departing employees show a substantially lower median monthly income (**$3,202 USD**) compared to retained employees (**$5,204 USD**).
+4. **Job Satisfaction (`jobsatisfaction`):** Attrition rate decreases progressively from **22.8%** among employees with low satisfaction (rating 1) down to **11.3%** for very high satisfaction (rating 4).
+
+![Employee Attrition: Exploratory Analysis](img/eda_attrition_insights.png)
 
 ---
 
-## 3. Comparativa y Afinamiento de Modelos
+## 3. Model Comparison and Tuning
 
-Se entrenaron y compararon 4 familias de algoritmos supervisados utilizando la metrica **ROC-AUC** debido al desbalance de clases:
+Four supervised classification families were trained and evaluated on stratified splits (80% train, 20% test). Models were evaluated primarily using **ROC-AUC** to reliably measure ranking capability despite class imbalance.
 
-| Modelo | Val ROC-AUC (Baseline) | 5-Fold CV ROC-AUC | Test ROC-AUC (Final) |
+| Classification Model | Validation ROC-AUC (Baseline) | 5-Fold CV ROC-AUC | Test ROC-AUC (Final) |
 |---|:---:|:---:|:---:|
-| **Logistic Regression** | 0.8308 | **0.8093 +/- 0.031** | **0.8053** |
+| **Logistic Regression** *(Selected)* | 0.8308 | **0.8093 +/- 0.031** | **0.8053** |
 | **Random Forest Classifier** | **0.8393** | 0.7992 +/- 0.022 | 0.7996 |
 | **XGBoost Classifier** | 0.7808 | 0.7870 +/- 0.025 | 0.8033 |
 | **Decision Tree Classifier** | 0.7584 | 0.7310 +/- 0.035 | 0.7240 |
 
-### Seleccion del Modelo Final
-Se selecciono **Logistic Regression** (con regularizacion `C=1.0`, solver `liblinear`) debido a:
-- Mejor rendimiento promedio y consistencia en validacion cruzada y conjunto de prueba final (**AUC 0.8053**, **Accuracy 88.8%**).
-- Alta interpretabilidad de los coeficientes para decisiones de negocio en Recursos Humanos.
-- Inferencia ultra-rapida y bajo consumo de recursos en produccion.
+![Classification Models: ROC-AUC Comparison](img/model_performance_comparison.png)
+
+### Final Model Selection
+**Logistic Regression** (with regularizer `C=1.0`, `solver='liblinear'`) was selected as the final model due to:
+- **Strong Generalization:** Highest average score and stability across 5-Fold Cross-Validation (**0.8093**) and the unseen Test set (**ROC-AUC: 0.8053**, **Test Accuracy: 88.8%**).
+- **Interpretability:** Clean feature coefficients that clearly indicate the directional influence of each factor.
+- **Efficiency:** Minimal compute footprint, near-zero inference latency, and lightweight deployment requirements.
 
 ---
 
-## 4. Estructura del Repositorio
+## 4. Repository Structure
 
 ```text
 mlzoomcamp-midterm-project/
 ├── data/
-│   └── employee_attrition.csv   # Dataset original
-├── notebook.ipynb                # Analisis exploratorio, modelado y tuning
-├── train.py                     # Script para reentrenar y exportar model.bin
-├── predict.py                   # Servicio web con FastAPI
-├── test_predict.py              # Script cliente para probar inferencia
-├── model.bin                    # Artefacto guardado (DictVectorizer + Modelo)
-├── pyproject.toml               # Dependencias gestionadas con uv
-├── uv.lock                      # Bloqueo determinista de dependencias
-├── Dockerfile                   # Configuracion de contenedor
-├── .gitignore                   # Exclusion de entornos y temporales
-└── README.md                    # Documentacion del proyecto
+│   └── employee_attrition.csv       # Original dataset
+├── img/
+│   ├── eda_attrition_insights.png   # Exploratory data analysis charts
+│   └── model_performance_comparison.png # Model ROC-AUC comparison chart
+├── notebook.ipynb                    # EDA, model benchmarking, and hyperparameter tuning
+├── train.py                         # Standalone script to train and serialize model.bin
+├── predict.py                       # Local REST API service built with FastAPI
+├── test_predict.py                  # Client test script for API inference
+├── generate_plots.py                # Standalone script to reproduce documentation plots
+├── model.bin                        # Serialized artifact (DictVectorizer + LogisticRegression)
+├── pyproject.toml                   # Project dependencies managed via uv
+├── uv.lock                          # Deterministic lockfile for reproducible environments
+├── Dockerfile                       # Container definition for local reproducible execution
+├── .gitignore                       # Git exclusion rules
+└── README.md                        # Project documentation
 ```
 
 ---
 
-## 5. Como Reproducir el Proyecto Localmente
+## 5. How to Reproduce Locally
 
-### Requisitos previos
-- Python 3.11 o 3.12 instalado.
-- Gestor de paquetes `uv` instalado ([guia de instalacion](https://docs.astral.sh/uv/getting-started/installation/)):
+### Prerequisites
+- Python 3.11 or 3.12 installed.
+- Package manager `uv` installed ([uv installation guide](https://docs.astral.sh/uv/getting-started/installation/)):
   ```bash
   pip install uv
   ```
 
-### 1. Clonar el repositorio y sincronizar el entorno
+### 1. Clone the Repository and Synchronize Dependencies
 ```bash
-git clone <URL_DEL_REPOSITORIO>
+git clone https://github.com/ajmaquera/mlzoomcamp-midterm-project.git
 cd mlzoomcamp-midterm-project
 uv sync
 ```
 
-### 2. Ejecutar el Notebook
-Puedes iniciar Jupyter con `uv`:
+### 2. Run the Jupyter Notebook
+To explore the analysis and training steps interactively:
 ```bash
 uv run --with jupyter jupyter notebook
 ```
-Y abrir `notebook.ipynb` para reproducir todos los graficos y entrenamientos.
+Open `notebook.ipynb` to view the EDA, modeling steps, and evaluation outputs.
 
-### 3. Entrenar el modelo con el script
-Para ejecutar el script de reentrenamiento que genera `model.bin`:
+### 3. Retrain and Export the Model
+To re-run the training script and regenerate `model.bin`:
 ```bash
 uv run python train.py
 ```
 
-### 4. Iniciar el servicio web localmente
+### 4. Regenerate Documentation Visualizations
+To regenerate the figures in the `img/` folder:
+```bash
+uv run python generate_plots.py
+```
+
+---
+
+## 6. Running the Local API Service (FastAPI)
+
+This project provides a local REST API service for model inference.
+
+### 1. Start the API Server Locally
 ```bash
 uv run uvicorn predict:app --host 0.0.0.0 --port 9696
 ```
 
-La API estara disponible en:
-- Verificacion de salud: `http://localhost:9696/health`
-- Documentacion interactiva Swagger: `http://localhost:9696/docs`
+Once running, interactive documentation is available at:
+- **Swagger UI:** `http://localhost:9696/docs`
+- **Health check:** `http://localhost:9696/health`
 
-### 5. Probar la API local
-En otra terminal ejecuta el script de prueba:
+### 2. Send a Test Request
+In a separate terminal, run the client test script:
 ```bash
 uv run python test_predict.py
 ```
 
-O usando `curl`:
+Or using `curl`:
 ```bash
 curl -X POST http://localhost:9696/predict \
   -H "Content-Type: application/json" \
@@ -152,7 +176,7 @@ curl -X POST http://localhost:9696/predict \
   }'
 ```
 
-Respuesta esperada:
+Expected JSON response:
 ```json
 {
   "attrition_probability": 0.8142,
@@ -163,21 +187,23 @@ Respuesta esperada:
 
 ---
 
-## 6. Despliegue con Docker
+## 7. Containerized Execution (Docker)
 
-### 1. Construir la imagen Docker
+To test the application in an isolated, reproducible container environment:
+
+### 1. Build the Docker Image
 ```bash
 docker build -t employee-attrition-app .
 ```
 
-### 2. Ejecutar el contenedor
+### 2. Run the Container
 ```bash
 docker run --rm -p 9696:9696 employee-attrition-app
 ```
 
-### 3. Probar el contenedor
-En otra terminal ejecuta:
+### 3. Verify Containerized Inference
+In another terminal, test the containerized endpoint:
 ```bash
-python test_predict.py
+uv run python test_predict.py
 ```
-O realiza una peticion a `http://localhost:9696/health` para comprobar que el servicio esta activo.
+Or check the health endpoint: `http://localhost:9696/health`.
